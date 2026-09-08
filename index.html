@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>METAL BIRD - Fly or Die</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090909;font-family:Arial Black,Impact,Arial,sans-serif;color:#fff}
+#game{position:relative;width:100%;height:100%;overflow:hidden;background:#170b0b}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+#menu,#over{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:
+linear-gradient(90deg,rgba(0,0,0,.78),rgba(20,0,0,.42)),url('reference.png') center/cover no-repeat}
+#over{display:none}
+.card{width:min(1050px,94vw);min-height:560px;padding:28px;border:2px solid #666;border-radius:8px;
+background:linear-gradient(135deg,rgba(8,8,8,.95),rgba(35,10,10,.92));box-shadow:0 0 45px #000, inset 0 0 35px #300;
+display:grid;grid-template-columns:1.1fr .9fr;gap:24px}
+.logo{font-size:clamp(42px,7vw,88px);line-height:.85;color:#ddd;text-shadow:3px 3px 0 #000,0 0 14px #f00;letter-spacing:-4px}
+.logo span{display:block;color:#e11;font-size:.36em;letter-spacing:6px;margin-left:10px;margin-top:14px}
+.tag{font-family:Arial;font-size:18px;opacity:.85;margin:22px 0}
+.quote{font-family:Arial;font-style:italic;color:#ddd;max-width:530px}
+.panel{border:2px solid #555;background:#111c;padding:18px;border-radius:6px;box-shadow:inset 0 0 20px #000}
+.panel h2{margin:0 0 12px;font-size:24px}
+.score{font-size:28px;color:#f6c945;margin:6px 0}
+.buttons button,.bird{width:100%;padding:15px;margin:7px 0;border:2px solid #777;border-radius:5px;
+font-size:22px;font-weight:900;cursor:pointer;color:#fff;background:linear-gradient(#a71919,#500707);box-shadow:0 4px 0 #210000}
+.buttons button:hover,.bird:hover{filter:brightness(1.25)}
+.birds{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bird{font-size:15px;background:#202020;box-shadow:none}
+.bird.sel{border-color:#f22;box-shadow:0 0 15px #f22;background:#300}
+.birdArt{display:block;width:100%;height:92px;margin:0 auto 4px;background:linear-gradient(#111,#050505);border:1px solid #444;border-radius:4px}
+.controls{font-family:Arial;font-size:14px;line-height:1.65;color:#ddd}
+.music{font-family:Arial;font-size:13px;color:#f6c945;margin-top:14px}
+#hud{display:none;position:absolute;left:20px;top:14px;right:20px;z-index:5;font-size:20px;text-shadow:2px 2px #000;justify-content:space-between}
+#pause{position:absolute;right:20px;top:15px;z-index:6;display:none;padding:8px 14px;background:#111d;color:white;border:2px solid #888;border-radius:5px}
+#touch{display:none;position:absolute;z-index:7;bottom:15px;left:50%;transform:translateX(-50%);gap:5px}
+.touch{padding:12px 14px;border:2px solid #777;background:#111d;color:#fff;border-radius:6px;font-weight:bold}
+@media(max-width:760px){
+ .card{grid-template-columns:1fr;overflow:auto;max-height:94vh}.logo{font-size:44px}.birds{grid-template-columns:1fr 1fr 1fr}.panel{padding:12px}
+ #touch{display:flex}
+}
+</style>
+</head>
+<body>
+<div id="game"><canvas id="c"></canvas>
+
+<div id="menu">
+<div class="card">
+<div>
+<div class="logo">METAL BIRD<span>FLY OR DIE</span></div>
+<div class="tag">SMALL BIRD. BIG ATTITUDE.</div>
+<p class="quote">„A levegő mindenkié, de a pontokért meg kell küzdeni.”</p>
+<div class="panel" style="margin-top:24px">
+<h2>🏆 SCORE BOARD</h2>
+<div>HIGHSCORE</div><div class="score" id="best">0</div>
+<div>UTOLSÓ SCORE</div><div class="score" id="lastScore">0</div>
+</div>
+</div>
+<div>
+<div class="panel"><h2>VÁLASSZ MADARAT</h2>
+<div class="birds">
+<button class="bird sel" data-i="0"><canvas class="birdArt" data-bird="0"></canvas>ROCKY<br><small>Kiegyensúlyozott</small></button>
+<button class="bird" data-i="1"><canvas class="birdArt" data-bird="1"></canvas>SKY<br><small>Gyors</small></button>
+<button class="bird" data-i="2"><canvas class="birdArt" data-bird="2"></canvas>BLAZE<br><small>Erős repülés</small></button>
+</div></div>
+<div class="buttons">
+<button id="start">JÁTÉK</button>
+<button id="exit">KILÉPÉS</button>
+</div>
+<div class="panel controls"><b>IRÁNYÍTÁS</b><br>↑ / SPACE — Ugrás<br>↓ / S — Hasalás<br>W / F — Repülés<br>ESC — Szünet / Menü</div>
+<div class="music">🎸 ZENE: Heavy Battle 2 — CC0 / OpenGameArt</div>
+</div>
+</div></div>
+
+<div id="over"><div class="card" style="display:block;text-align:center;min-height:auto">
+<div class="logo">YOU DIED<span>METAL BIRD</span></div>
+<div class="score">SCORE: <span id="final">0</span></div>
+<div class="score">TÁV: <span id="dist">0</span> m</div>
+<button id="again">ÚJRA</button><button id="back">MENÜ</button>
+</div></div>
+
+<div id="hud"><span>⭐ SCORE: <b id="score">0</b></span><span>📏 <b id="meters">0</b> m</span><span id="birdname">ROCKY</span></div>
+<button id="pause">Ⅱ</button>
+<div id="touch"><button class="touch" data-k=" ">UGRÁS</button><button class="touch" data-k="s">HASALÁS</button><button class="touch" data-k="w">REPÜLÉS</button></div>
+
+<audio id="music" preload="auto" loop>
+<source src="https://opengameart.org/sites/default/files/heavy_battle_2_bpm185.mp3" type="audio/mpeg">
+</audio>
+</div>
+
+<script>
+const C=document.getElementById('c'),X=C.getContext('2d');let W,H,D=1;
+function resize(){D=devicePixelRatio||1;W=innerWidth;H=innerHeight;C.width=W*D;C.height=H*D;X.setTransform(D,0,0,D,0,0)}addEventListener('resize',resize);resize();
+
+const birds=[
+{name:'ROCKY',body:'#111',wing:'#3b3b3b',speed:5.5,type:0},
+{name:'SKY',body:'#1769b0',wing:'#3b82d0',speed:6.3,type:1},
+{name:'BLAZE',body:'#e8e1d2',wing:'#fff7e6',speed:5.0,type:2}
+];
+let selected=0,keys={},mode='menu',p,obs=[],meters=0,score=0,last=0,spawn=0,best=+localStorage.metalBirdBest||0,t=0;
+addEventListener('load',drawPortraits);addEventListener('resize',()=>setTimeout(drawPortraits,30));
+const music=document.getElementById('music');
+
+document.querySelectorAll('.bird').forEach(b=>b.onclick=()=>{selected=+b.dataset.i;document.querySelectorAll('.bird').forEach(x=>x.classList.remove('sel'));b.classList.add('sel')});
+addEventListener('keydown',e=>{keys[e.key]=true;keys[e.key.toLowerCase()]=true;if(e.key==='Escape'&&mode==='play')togglePause()});
+addEventListener('keyup',e=>{keys[e.key]=false;keys[e.key.toLowerCase()]=false});
+document.querySelectorAll('.touch').forEach(b=>b.onpointerdown=()=>{keys[b.dataset.k]=true;setTimeout(()=>keys[b.dataset.k]=false,180)});
+document.getElementById('start').onclick=start;
+document.getElementById('again').onclick=start;
+document.getElementById('back').onclick=menu;
+document.getElementById('pause').onclick=togglePause;
+document.getElementById('exit').onclick=()=>{document.querySelector('#menu .card').innerHTML='<div style="grid-column:1/-1;text-align:center"><div class="logo">EXIT</div><p>A játékból kiléptél. A madár közben valószínűleg már egy turnébuszt keres.</p><button onclick="location.reload()">VISSZA</button></div>'};
+
+function start(){
+ mode='play';obs=[];meters=score=spawn=0;
+ p={x:125,y:H*.43,vy:0,w:50,h:38,ground:false,flying:false};
+ document.getElementById('menu').style.display='none';document.getElementById('over').style.display='none';
+ document.getElementById('hud').style.display='flex';document.getElementById('pause').style.display='block';
+ document.getElementById('birdname').textContent=birds[selected].name;
+ music.currentTime=0;music.play().catch(()=>{});
+ last=performance.now();requestAnimationFrame(loop)
+}
+function menu(){mode='menu';document.getElementById('menu').style.display='flex';document.getElementById('over').style.display='none';document.getElementById('hud').style.display='none';document.getElementById('pause').style.display='none';music.pause()}
+function togglePause(){if(mode==='play'){mode='pause';music.pause();document.getElementById('pause').textContent='▶'}else if(mode==='pause'){mode='play';music.play().catch(()=>{});document.getElementById('pause').textContent='Ⅱ';last=performance.now();requestAnimationFrame(loop)}}
+
+function spawnObstacle(){
+ let r=Math.random(),gy=H*.70;
+ if(r<.2)obs.push({x:W+40,y:gy-45,w:45,h:45,k:'spike'});
+ else if(r<.4)obs.push({x:W+40,y:gy-125,w:48,h:125,k:'tower'});
+ else if(r<.58)obs.push({x:W+40,y:gy-28,w:100,h:28,k:'log'});
+ else if(r<.78)obs.push({x:W+40,y:H*.28,w:90,h:28,k:'axe'});
+ else obs.push({x:W+40,y:gy-70,w:65,h:70,k:'wheel'});
+}
+function hit(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
+function update(dt){
+ const b=birds[selected],speed=b.speed+Math.min(3,meters/450),jump=keys[' ']||keys['w'],down=keys['s']||keys['ArrowDown'],fly=keys['f']||keys['F'];
+ if(jump&&p.ground){p.vy=-11;p.ground=false}
+ if(fly)p.vy-=20*dt;p.vy+=26*dt;if(down&&!p.ground)p.vy+=35*dt;p.vy=Math.max(-13,Math.min(15,p.vy));p.y+=p.vy;
+ const gy=H*.70,ph=down&&!fly?22:38;
+ if(p.y+ph>=gy){p.y=gy-ph;p.vy=0;p.ground=true}else p.ground=false;
+ if(keys['a']||keys['ArrowLeft'])p.x-=220*dt;if(keys['d']||keys['ArrowRight'])p.x+=220*dt;p.x=Math.max(25,Math.min(W*.42,p.x));
+ spawn-=dt;if(spawn<=0){spawnObstacle();spawn=.75+Math.random()*1.0}
+ obs.forEach(o=>o.x-=speed*60*dt);obs=obs.filter(o=>o.x+o.w>-80);
+ meters+=speed*dt*1.12;score=Math.floor(meters)*100;
+ document.getElementById('score').textContent=score.toLocaleString('hu-HU');document.getElementById('meters').textContent=Math.floor(meters);
+ const crouch=down&&!fly; p.flying=fly && !p.ground;
+ for(const o of obs){if(hit({x:p.x+7,y:p.y+5,w:p.w-14,h:(crouch?22:38)-8},o)){end();return}}
+}
+function feather(x1,y1,x2,y2,w,color){
+ X.fillStyle=color;X.strokeStyle='#050505';X.lineWidth=2.5;X.beginPath();
+ X.moveTo(x1,y1);X.quadraticCurveTo((x1+x2)/2-w,y1-8,x2,y2);X.quadraticCurveTo((x1+x2)/2,y2+w,(x1+x2)/2-4,y2+w+3);X.quadraticCurveTo((x1+x2)/2-w/2,y2+5,x1,y1);X.fill();X.stroke();
+}
+function drawBirdShape(cx,cy,scale,type,flap=false){
+ X.save();X.translate(cx,cy);X.scale(scale,scale);
+ const wingY=flap?-13:6;
+ if(type===0){
+   // ROCKY: black metal crow, red mohawk/bandana, shades
+   X.fillStyle='#0b0b0b';X.strokeStyle='#020202';X.lineWidth=3;X.beginPath();X.ellipse(0,2,25,18,0,0,Math.PI*2);X.fill();X.stroke();
+   feather(-18,7,-36,15,9,'#202020'); feather(-16,12,-35,25,8,'#151515');
+   X.fillStyle='#2b2b2b';X.beginPath();X.ellipse(-7,wingY,19,10,-.25,0,Math.PI*2);X.fill();X.stroke();
+   // red spiky mohawk
+   X.fillStyle='#b3131b';X.strokeStyle='#390307';X.lineWidth=2;X.beginPath();X.moveTo(-19,-12);X.lineTo(-11,-29);X.lineTo(-5,-18);X.lineTo(1,-31);X.lineTo(7,-17);X.lineTo(15,-26);X.lineTo(16,-9);X.closePath();X.fill();X.stroke();
+   // bandana tail
+   X.fillStyle='#8f1017';X.beginPath();X.moveTo(-17,-14);X.lineTo(17,-18);X.lineTo(25,-9);X.lineTo(6,-7);X.lineTo(-16,-7);X.closePath();X.fill();X.stroke();
+   X.beginPath();X.moveTo(10,-14);X.lineTo(31,-24);X.lineTo(23,-7);X.closePath();X.fill();X.stroke();
+   // sunglasses
+   X.fillStyle='#050505';X.fillRect(4,-11,23,10);X.strokeStyle='#777';X.strokeRect(4,-11,23,10);X.fillStyle='#6b7280';X.fillRect(7,-9,8,6);X.fillRect(17,-9,8,6);
+   // beak
+   X.fillStyle='#e0a21a';X.strokeStyle='#111';X.beginPath();X.moveTo(23,-2);X.lineTo(40,4);X.lineTo(23,10);X.closePath();X.fill();X.stroke();
+ } else if(type===1){
+   // SKY: blue aggressive punk bird with sharp crest
+   X.fillStyle='#145a9c';X.strokeStyle='#06111d';X.lineWidth=3;X.beginPath();X.ellipse(0,2,25,18,0,0,Math.PI*2);X.fill();X.stroke();
+   feather(-18,6,-35,12,9,'#0d477b'); feather(-17,12,-32,23,8,'#0a3b69');
+   X.fillStyle='#3b82c9';X.beginPath();X.ellipse(-7,wingY,20,10,-.3,0,Math.PI*2);X.fill();X.stroke();
+   // blue spiky crest
+   X.fillStyle='#58a6e8';X.beginPath();X.moveTo(-19,-11);X.lineTo(-14,-27);X.lineTo(-7,-17);X.lineTo(-2,-31);X.lineTo(4,-16);X.lineTo(13,-27);X.lineTo(14,-9);X.closePath();X.fill();X.stroke();
+   // angry brow + eye
+   X.fillStyle='#dcecff';X.beginPath();X.arc(16,-7,5,0,Math.PI*2);X.fill();X.stroke();X.fillStyle='#050505';X.beginPath();X.arc(18,-7,2.5,0,Math.PI*2);X.fill();
+   X.strokeStyle='#07111d';X.lineWidth=4;X.beginPath();X.moveTo(10,-13);X.lineTo(24,-17);X.stroke();
+   X.fillStyle='#f2a51a';X.beginPath();X.moveTo(23,-2);X.lineTo(40,4);X.lineTo(23,10);X.closePath();X.fill();X.stroke();
+ } else {
+   // BLAZE: white bald eagle, layered wing and fierce golden beak
+   X.fillStyle='#eee9dd';X.strokeStyle='#161616';X.lineWidth=3;X.beginPath();X.ellipse(0,2,26,19,0,0,Math.PI*2);X.fill();X.stroke();
+   feather(-18,4,-42,10,10,'#d7d1c4'); feather(-18,10,-39,22,9,'#c6c0b4'); feather(-14,14,-31,28,8,'#aaa59b');
+   X.fillStyle='#fffaf0';X.beginPath();X.ellipse(-7,wingY,20,11,-.3,0,Math.PI*2);X.fill();X.stroke();
+   // eagle head and jagged neck
+   X.fillStyle='#f7f3ea';X.beginPath();X.arc(15,-7,12,0,Math.PI*2);X.fill();X.stroke();
+   X.fillStyle='#181818';X.beginPath();X.arc(18,-9,2.8,0,Math.PI*2);X.fill();
+   X.fillStyle='#d9a019';X.beginPath();X.moveTo(22,-2);X.lineTo(42,5);X.lineTo(22,12);X.lineTo(28,5);X.closePath();X.fill();X.stroke();
+   X.fillStyle='#fff';for(let i=0;i<5;i++){X.beginPath();X.moveTo(5+i*3,1);X.lineTo(8+i*3,11);X.lineTo(11+i*3,2);X.fill()}
+ }
+ X.restore();
+}
+function drawBird(x,y,ph){
+ const airborne=!p.ground;
+ const flap=p.flying ? Math.sin(t*18)>0 : false;
+ const bob=airborne&&!p.flying ? Math.sin(t*7)*1.5 : 0;
+ drawBirdShape(x+25,y+ph/2+bob,1.0,selected,flap);
+ // feet animate only while running on ground
+ if(p.ground && !(keys['s']||keys['ArrowDown'])){
+   const step=Math.sin(t*16)*3; X.strokeStyle='#b7791f'; X.lineWidth=3;
+   X.beginPath();X.moveTo(x+17,y+ph-2);X.lineTo(x+13,y+ph+5+step);X.moveTo(x+34,y+ph-2);X.lineTo(x+38,y+ph+5-step);X.stroke();
+ }
+}
+function drawPortraits(){
+ document.querySelectorAll('.birdArt').forEach(cv=>{
+   const i=+cv.dataset.bird; const r=cv.getBoundingClientRect(); const d=devicePixelRatio||1;
+   cv.width=Math.max(1,r.width*d);cv.height=Math.max(1,r.height*d);const ctx=cv.getContext('2d');ctx.setTransform(d,0,0,d,0,0);
+   ctx.clearRect(0,0,r.width,r.height);ctx.fillStyle='#0b0b0b';ctx.fillRect(0,0,r.width,r.height);
+   ctx.strokeStyle='#4b4b4b';ctx.lineWidth=1;ctx.strokeRect(2,2,r.width-4,r.height-4);
+   // tiny red moon / stage light
+   ctx.fillStyle='#5b1115';ctx.beginPath();ctx.arc(r.width*.76,r.height*.25,18,0,Math.PI*2);ctx.fill();
+   X.save(); // use shared drawing context temporarily is not safe, so draw with ctx through a tiny local transform
+   ctx.save();ctx.translate(r.width*.43,r.height*.58);ctx.scale(1.25,1.25);
+   // duplicate by rendering onto main canvas is impossible here, use simple portrait-specific vector fallback
+   ctx.restore();X.restore();
+   // detailed enough mini portrait, independent of game canvas
+   ctx.save();ctx.translate(r.width*.43,r.height*.58);ctx.scale(1.15,1.15);
+   if(i===0){ctx.fillStyle='#090909';ctx.beginPath();ctx.ellipse(0,4,25,17,0,0,7);ctx.fill();ctx.fillStyle='#b3131b';ctx.beginPath();ctx.moveTo(-18,-10);ctx.lineTo(-10,-25);ctx.lineTo(-3,-15);ctx.lineTo(4,-28);ctx.lineTo(9,-13);ctx.lineTo(17,-23);ctx.lineTo(16,-7);ctx.closePath();ctx.fill();ctx.fillStyle='#8f1017';ctx.fillRect(-13,-11,32,8);ctx.fillStyle='#050505';ctx.fillRect(3,-10,23,10);ctx.fillStyle='#e0a21a';ctx.beginPath();ctx.moveTo(23,-1);ctx.lineTo(40,4);ctx.lineTo(23,10);ctx.closePath();ctx.fill();}
+   if(i===1){ctx.fillStyle='#145a9c';ctx.beginPath();ctx.ellipse(0,4,25,17,0,0,7);ctx.fill();ctx.fillStyle='#58a6e8';ctx.beginPath();ctx.moveTo(-19,-10);ctx.lineTo(-14,-25);ctx.lineTo(-7,-16);ctx.lineTo(-2,-29);ctx.lineTo(4,-15);ctx.lineTo(13,-25);ctx.lineTo(14,-7);ctx.closePath();ctx.fill();ctx.fillStyle='#dcecff';ctx.beginPath();ctx.arc(17,-7,5,0,7);ctx.fill();ctx.fillStyle='#f2a51a';ctx.beginPath();ctx.moveTo(23,-1);ctx.lineTo(40,4);ctx.lineTo(23,10);ctx.closePath();ctx.fill();}
+   if(i===2){ctx.fillStyle='#eee9dd';ctx.beginPath();ctx.ellipse(0,4,26,18,0,0,7);ctx.fill();ctx.fillStyle='#fffaf0';ctx.beginPath();ctx.arc(15,-7,12,0,7);ctx.fill();ctx.fillStyle='#d9a019';ctx.beginPath();ctx.moveTo(22,-2);ctx.lineTo(42,5);ctx.lineTo(22,12);ctx.closePath();ctx.fill();ctx.fillStyle='#c6c0b4';ctx.beginPath();ctx.moveTo(-17,7);ctx.lineTo(-40,20);ctx.lineTo(-15,14);ctx.closePath();ctx.fill();}
+   ctx.restore();
+ });
+}
+
+function draw(){
+ X.clearRect(0,0,W,H);
+ const scroll=meters*14, groundY=H*.70;
+ // layered blood-red sky
+ let g=X.createLinearGradient(0,0,0,H);g.addColorStop(0,'#050509');g.addColorStop(.38,'#35070b');g.addColorStop(.70,'#6f1118');g.addColorStop(1,'#100b0d');X.fillStyle=g;X.fillRect(0,0,W,H);
+ // clouds / smoke
+ for(let i=0;i<10;i++){let xx=(i*230-scroll*.12)% (W+300)-150, yy=80+(i%4)*55; X.fillStyle='rgba(20,8,12,.55)';X.beginPath();X.ellipse(xx,yy,90,18,0,0,7);X.ellipse(xx+70,yy+5,70,14,0,0,7);X.fill();}
+ // moon halo
+ X.fillStyle='rgba(220,25,35,.16)';X.beginPath();X.arc(W*.78,H*.19,82,0,7);X.fill();
+ X.fillStyle='#d92b35';X.beginPath();X.arc(W*.78,H*.19,48,0,7);X.fill();
+ X.fillStyle='rgba(60,0,8,.5)';for(let i=0;i<5;i++){X.beginPath();X.arc(W*.78-18+i*11,H*.17+(i%2)*12,4,0,7);X.fill();}
+ // distant mountains
+ for(let layer=0;layer<3;layer++){
+   X.fillStyle=layer===0?'#22080c':layer===1?'#170b12':'#0d0d14';
+   const base=H*(.54+layer*.05), step=170;
+   for(let i=-2;i<W/step+3;i++){let xx=i*step-(scroll*(.08+layer*.07)%step);X.beginPath();X.moveTo(xx,base);X.lineTo(xx+75,base-150-(i%3)*25);X.lineTo(xx+150,base);X.fill();}
+ }
+ // gothic castle silhouette with towers, flags, windows
+ const cx=W*.68, cy=H*.34; X.fillStyle='#090b10';X.fillRect(cx,cy+40,220,H*.36);
+ [[cx+15,cy,48,160],[cx+88,cy+30,44,130],[cx+160,cy+10,50,150]].forEach(a=>{X.fillRect(a[0],a[1],a[2],a[3]);X.beginPath();X.moveTo(a[0]-7,a[1]);X.lineTo(a[0]+a[2]/2,a[1]-45);X.lineTo(a[0]+a[2]+7,a[1]);X.fill();});
+ X.fillStyle='#64131a';X.fillRect(cx+88,cy+82,44,75);X.fillStyle='#ef3038';X.fillRect(cx+109,cy+98,3,20);
+ X.fillStyle='#b91c25';X.strokeStyle='#4b0a0f';X.lineWidth=2;for(let i=0;i<7;i++){let wx=cx+10+i*29, wy=cy+75+(i%2)*32;X.fillRect(wx,wy,10,16);X.strokeRect(wx,wy,10,16);}
+ // chains / hanging iron decorations
+ X.strokeStyle='#3f3f46';X.lineWidth=3;for(let x=70-(scroll*.35%180);x<W;x+=180){X.beginPath();for(let j=0;j<8;j++){X.arc(x+(j%2?7:-7),45+j*22,7,0,Math.PI*2); }X.stroke();}
+ // foreground ruined gravestones
+ for(let i=0;i<14;i++){let x=i*125-(scroll*.55%125);let y=groundY-18-(i%3)*8;X.fillStyle='#27272d';X.beginPath();X.roundRect(x,y-45-(i%2)*20,32,45+(i%2)*20,6);X.fill();X.fillStyle='#6b1b22';X.fillRect(x+8,y-30,16,3);}
+ // ground, cracked stone
+ X.fillStyle='#0b0c10';X.fillRect(0,groundY,W,H-groundY);
+ X.strokeStyle='#30323a';X.lineWidth=2;for(let x=-(scroll%90);x<W+90;x+=90){X.beginPath();X.moveTo(x,groundY);X.lineTo(x+55,groundY+20);X.lineTo(x+35,groundY+42);X.moveTo(x+55,groundY+20);X.lineTo(x+82,groundY+10);X.stroke();}
+ // detailed obstacles
+ for(const o of obs){
+   if(o.k==='spike'){
+     X.fillStyle='#55565c';X.strokeStyle='#08090c';X.lineWidth=3;X.beginPath();X.moveTo(o.x,o.y+o.h);X.lineTo(o.x+10,o.y+15);X.lineTo(o.x+o.w*.5,o.y);X.lineTo(o.x+o.w-10,o.y+15);X.lineTo(o.x+o.w,o.y+o.h);X.closePath();X.fill();X.stroke();
+     X.fillStyle='#d7d9df';X.beginPath();X.moveTo(o.x+o.w*.5,o.y+4);X.lineTo(o.x+o.w*.5+5,o.y+o.h-5);X.lineTo(o.x+o.w*.5-5,o.y+o.h-5);X.fill();
+   }
+   if(o.k==='tower'){
+     X.fillStyle='#25262c';X.strokeStyle='#090a0d';X.lineWidth=4;X.fillRect(o.x,o.y,o.w,o.h);X.strokeRect(o.x,o.y,o.w,o.h);
+     X.fillStyle='#111217';for(let yy=o.y+15;yy<o.y+o.h-10;yy+=30){X.fillRect(o.x+7,yy,11,14);X.fillRect(o.x+o.w-18,yy,11,14);}
+     X.fillStyle='#9f1821';X.fillRect(o.x+o.w/2-4,o.y+10,8,o.h-20);X.fillStyle='#d7d7db';X.beginPath();X.moveTo(o.x-6,o.y);X.lineTo(o.x+o.w/2,o.y-24);X.lineTo(o.x+o.w+6,o.y);X.fill();
+   }
+   if(o.k==='log'){
+     X.fillStyle='#4a2418';X.strokeStyle='#140b08';X.lineWidth=4;X.fillRect(o.x,o.y,o.w,o.h);X.strokeRect(o.x,o.y,o.w,o.h);
+     X.fillStyle='#9a5a2b';X.beginPath();X.arc(o.x+o.w-15,o.y+o.h/2,12,0,7);X.fill();X.stroke();
+     X.strokeStyle='#d6a15d';X.lineWidth=2;X.beginPath();X.moveTo(o.x+8,o.y+7);X.lineTo(o.x+55,o.y+20);X.moveTo(o.x+35,o.y+4);X.lineTo(o.x+82,o.y+20);X.stroke();
+     X.fillStyle='#222';for(let i=0;i<3;i++)X.fillRect(o.x+10+i*27,o.y-6,5,6);
+   }
+   if(o.k==='axe'){
+     const swing=Math.sin(t*3.5)*.42; X.save();X.translate(o.x+45,0);X.rotate(swing);X.strokeStyle='#27272d';X.lineWidth=7;X.beginPath();X.moveTo(0,0);X.lineTo(0,o.y+12);X.stroke();X.fillStyle='#9da0a8';X.strokeStyle='#08090c';X.lineWidth=4;X.beginPath();X.moveTo(-28,o.y-3);X.quadraticCurveTo(0,o.y-30,28,o.y-3);X.lineTo(20,o.y+25);X.quadraticCurveTo(0,o.y+8,-20,o.y+25);X.closePath();X.fill();X.stroke();X.fillStyle='#d92b35';X.fillRect(-5,o.y-1,10,7);X.restore();
+   }
+   if(o.k==='wheel'){
+     const rot=t*2.8;X.save();X.translate(o.x+32,o.y+35);X.rotate(rot);X.fillStyle='#18191e';X.strokeStyle='#8b1e25';X.lineWidth=7;X.beginPath();X.arc(0,0,31,0,7);X.fill();X.stroke();for(let a=0;a<8;a++){let q=a*Math.PI/4;X.beginPath();X.moveTo(0,0);X.lineTo(31*Math.cos(q),31*Math.sin(q));X.stroke();}X.fillStyle='#b7b8bd';X.beginPath();X.arc(0,0,8,0,7);X.fill();X.restore();
+   }
+ }
+ drawBird(p.x,p.y,keys['s']&&!keys['f']?22:38);
+ X.strokeStyle='#777';X.lineWidth=2;X.beginPath();X.moveTo(0,55);X.lineTo(W,55);X.stroke();
+}
+function loop(now){if(mode!=='play')return;let dt=Math.min(.033,(now-last)/1000);last=now;t+=dt;update(dt);draw();requestAnimationFrame(loop)}
+function end(){
+ mode='over';music.pause();if(score>best){best=score;localStorage.metalBirdBest=best}
+ document.getElementById('final').textContent=score.toLocaleString('hu-HU');document.getElementById('dist').textContent=Math.floor(meters);
+ document.getElementById('best').textContent=best.toLocaleString('hu-HU');document.getElementById('lastScore').textContent=score.toLocaleString('hu-HU');
+ document.getElementById('over').style.display='flex';document.getElementById('hud').style.display='none';document.getElementById('pause').style.display='none'
+}
+document.getElementById('best').textContent=best.toLocaleString('hu-HU');draw();
+</script></body></html>
